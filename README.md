@@ -147,6 +147,93 @@ $env:HTTP_PROXY="http://your_proxy_address:port"
 
 ---
 
+---
+
+## 🔌 OpenRouter 使用指南
+
+本项目已内置对 OpenRouter 的支持，作为 OpenAI 协议的上游通道使用。推荐通过本代理进行调用，方便统一鉴权、日志与多提供商切换。
+
+### 启动（OpenRouter 模式）
+
+必需参数：`--model-provider openai-openrouter`、`--openrouter-api-key`、`--openrouter-base-url`（默认 `https://openrouter.ai/api/v1` 可省略）。
+
+```bash
+node src/api-server.js \
+  --host 0.0.0.0 --port 3000 \
+  --api-key 123456 \
+  --model-provider openai-openrouter \
+  --openrouter-api-key sk-or-v1-你的OpenRouterKey \
+  --openrouter-base-url https://openrouter.ai/api/v1
+```
+
+可选（推荐）的来源标识头，将由代理自动转发到上游：
+
+```bash
+  --openrouter-referer https://github.com/yourname/yourrepo \
+  --openrouter-title "AIClient Proxy"
+```
+
+注意：`--openrouter-referer` 与 `--openrouter-title` 必须为 ASCII（不能包含中文或空格），referer 必须是完整 URL，否则 Node 会报错 “Invalid character in header content”。
+
+### 通过本代理调用（OpenAI 兼容）
+
+- 非流式：
+```bash
+curl -s http://localhost:3000/v1/chat/completions \
+  -H "Authorization: Bearer 123456" \
+  -H "Content-Type: application/json" \
+  -H "model-provider: openai-openrouter" \
+  -d '{
+    "model": "deepseek/deepseek-chat-v3-0324:free",
+    "messages": [{"role": "user", "content": "你好，2+2=？"}]
+  }'
+```
+
+- Python SDK（将 base_url 指向本地代理）：
+```python
+from openai import OpenAI
+client = OpenAI(base_url="http://localhost:3000/v1", api_key="123456")
+resp = client.chat.completions.create(
+    model="deepseek/deepseek-chat-v3-0324:free",
+    messages=[{"role":"user","content":"What is the meaning of life?"}]
+)
+print(resp.choices[0].message.content)
+```
+
+### 列出可用模型
+
+```bash
+curl -s http://localhost:3000/v1/models \
+  -H "Authorization: Bearer 123456" \
+  -H "model-provider: openai-openrouter"
+```
+
+模型 ID 需使用 OpenRouter 目录中的命名（如 `deepseek/deepseek-chat-v3-0324:free`）。
+
+### 固定默认模型（仅在 OpenRouter 模式生效）
+
+新增参数：
+- `--default-model <modelId>`：默认模型 ID（如 `deepseek/deepseek-chat-v3-0324:free`）
+- `--default-model-mode <fallback|force>`：
+  - fallback：仅当请求未指定 `model` 时使用默认模型
+  - force：即使请求指定了 `model`，也强制改为默认模型
+
+示例：
+```bash
+node src/api-server.js \
+  --host 0.0.0.0 --port 3000 \
+  --api-key 123456 \
+  --model-provider openai-openrouter \
+  --openrouter-api-key sk-or-v1-你的OpenRouterKey \
+  --openrouter-base-url https://openrouter.ai/api/v1 \
+  --default-model deepseek/deepseek-chat-v3-0324:free \
+  --default-model-mode force
+```
+
+> 提示：若启动时已设置 `--model-provider openai-openrouter`，客户端可省略 `model-provider` 请求头。
+
+---
+
 ## 📄 开源许可
 
 本项目遵循 [**GNU General Public License v3 (GPLv3)**](https://www.gnu.org/licenses/gpl-3.0) 开源许可。详情请查看根目录下的 `LICENSE` 文件。
