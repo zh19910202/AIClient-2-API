@@ -152,14 +152,14 @@ NEVER commit changes unless the user explicitly asks you to. It is VERY IMPORTAN
 - You have the capability to call multiple tools in a single response. When multiple independent pieces of information are requested, batch your tool calls together for optimal performance. When making multiple bash tool calls, you MUST send a single message with multiple tools calls to run the calls in parallel. For example, if you need to run "git status" and "git diff", send a single message with two tool calls to run the calls in parallel.
 
 
-You can use the following tools without requiring user approval: WebFetch(domain:github.com)
+You can use the following tools without requiring user approval: Bash(npm test), Bash(node:*)
 
 
 
 Here is useful information about the environment you are running in:
 <env>
-Working directory: /Users/snow
-Is directory a git repo: No
+Working directory: /Users/snow/AIClient-2-API
+Is directory a git repo: Yes
 Platform: darwin
 OS Version: Darwin 24.5.0
 Today's date: 2025-08-13
@@ -184,10 +184,17 @@ assistant: Clients are marked as failed in the `connectToServer` function in src
 </example>
 
 
-# MCP Server Instructions
+gitStatus: This is the git status at the start of the conversation. Note that this status is a snapshot in time, and will not update during the conversation.
+Current branch: main
 
-The following MCP servers have provided instructions for how to use their tools and resources:
+Main branch (you will usually use this for PRs): main
 
-## context7
-Use this server to retrieve up-to-date documentation and code examples for any library.
+Status:
+(clean)
 
+Recent commits:
+7a37f24 docs(readme): add OpenRouter startup, Claude Code integration, streaming examples; feat: OpenAI↔Claude converters and system prompt extraction fixes
+8d2a7dd docs: add OpenRouter usage guide, default-model options, and provider notes; feat: OpenRouter provider integration, headers, and default model control (OpenRouter-only)
+c1f100f feat(oauth): 添加OAuth令牌自动刷新功能
+3b7b9d3 docs: 更新README中的协议关系图
+9ef09ee Merge branch 'main' of https://github.com/justlovemaki/GeminiCli2API
