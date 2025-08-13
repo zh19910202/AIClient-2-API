@@ -367,6 +367,10 @@ export async function handleContentGenerationRequest (req, res, service, endpoin
     if (!selectedModel) {
         throw new Error("Could not determine the model from the request.")
     }
+    // 确保在 OpenRouter (OpenAI 协议) 场景下，请求体里包含正确的 model 字段
+    if (CONFIG.MODEL_PROVIDER === MODEL_PROVIDER.OPENAI_OPENROUTER) {
+        processedRequestBody.model = selectedModel
+    }
     console.log(`[Content Generation] Model: ${selectedModel}, Stream: ${isStream}`)
 
     // 3. Apply system prompt from file if configured.
@@ -506,12 +510,32 @@ export function extractSystemPromptFromRequestBody (requestBody, provider) {
         case MODEL_PROTOCOL_PREFIX.OPENAI:
             const openaiSystemMessage = requestBody.messages?.find(m => m.role === 'system')
             if (openaiSystemMessage?.content) {
-                incomingSystemText = openaiSystemMessage.content
+                const content = openaiSystemMessage.content
+                if (Array.isArray(content)) {
+                    incomingSystemText = content
+                        .filter(part => typeof part.text === 'string')
+                        .map(part => part.text)
+                        .join('\n')
+                } else if (typeof content === 'object') {
+                    incomingSystemText = JSON.stringify(content)
+                } else {
+                    incomingSystemText = content
+                }
             } else if (requestBody.messages?.length > 0) {
                 // Fallback to first user message if no system message
                 const userMessage = requestBody.messages.find(m => m.role === 'user')
                 if (userMessage) {
-                    incomingSystemText = userMessage.content
+                    const content = userMessage.content
+                    if (Array.isArray(content)) {
+                        incomingSystemText = content
+                            .filter(part => typeof part.text === 'string')
+                            .map(part => part.text)
+                            .join('\n')
+                    } else if (typeof content === 'object') {
+                        incomingSystemText = JSON.stringify(content)
+                    } else {
+                        incomingSystemText = content
+                    }
                 }
             }
             break

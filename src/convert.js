@@ -1,18 +1,18 @@
-import { v4 as uuidv4 } from 'uuid';
-import { MODEL_PROTOCOL_PREFIX, getProtocolPrefix } from './common.js';
+import { v4 as uuidv4 } from 'uuid'
+import { MODEL_PROTOCOL_PREFIX, getProtocolPrefix } from './common.js'
 
 // 定义默认常量
-const DEFAULT_MAX_TOKENS = 8192;
-const DEFAULT_GEMINI_MAX_TOKENS = 65536;
-const DEFAULT_TEMPERATURE = 1;
-const DEFAULT_TOP_P = 0.9;
+const DEFAULT_MAX_TOKENS = 8192
+const DEFAULT_GEMINI_MAX_TOKENS = 65536
+const DEFAULT_TEMPERATURE = 1
+const DEFAULT_TOP_P = 0.9
 
 // 辅助函数：判断值是否为 undefined 或 0，并返回默认值
-function checkAndAssignOrDefault(value, defaultValue) {
+function checkAndAssignOrDefault (value, defaultValue) {
     if (value !== undefined && value !== 0) {
-        return value;
+        return value
     }
-    return defaultValue;
+    return defaultValue
 }
 
 /**
@@ -25,7 +25,7 @@ function checkAndAssignOrDefault(value, defaultValue) {
  * @returns {object} The converted data.
  * @throws {Error} If no suitable conversion function is found.
  */
-export function convertData(data, type, fromProvider, toProvider, model) {
+export function convertData (data, type, fromProvider, toProvider, model) {
     // Define a map of conversion functions using protocol prefixes
     const conversionMap = {
         request: {
@@ -48,6 +48,7 @@ export function convertData(data, type, fromProvider, toProvider, model) {
             },
             [MODEL_PROTOCOL_PREFIX.CLAUDE]: { // to Claude protocol
                 [MODEL_PROTOCOL_PREFIX.GEMINI]: toClaudeChatCompletionFromGemini, // from Gemini protocol
+                [MODEL_PROTOCOL_PREFIX.OPENAI]: toClaudeChatCompletionFromOpenAI,   // from OpenAI protocol
             },
         },
         streamChunk: {
@@ -57,6 +58,7 @@ export function convertData(data, type, fromProvider, toProvider, model) {
             },
             [MODEL_PROTOCOL_PREFIX.CLAUDE]: { // to Claude protocol
                 [MODEL_PROTOCOL_PREFIX.GEMINI]: toClaudeStreamChunkFromGemini, // from Gemini protocol
+                [MODEL_PROTOCOL_PREFIX.OPENAI]: toClaudeStreamChunkFromOpenAI,   // from OpenAI protocol
             },
         },
         modelList: {
@@ -65,28 +67,28 @@ export function convertData(data, type, fromProvider, toProvider, model) {
                 [MODEL_PROTOCOL_PREFIX.CLAUDE]: toOpenAIModelListFromClaude, // from Claude protocol
             },
         }
-    };
+    }
 
-    const targetConversions = conversionMap[type];
+    const targetConversions = conversionMap[type]
     if (!targetConversions) {
-        throw new Error(`Unsupported conversion type: ${type}`);
+        throw new Error(`Unsupported conversion type: ${type}`)
     }
 
-    const toConversions = targetConversions[getProtocolPrefix(toProvider)];
+    const toConversions = targetConversions[getProtocolPrefix(toProvider)]
     if (!toConversions) {
-        throw new Error(`No conversions defined for target protocol: ${getProtocolPrefix(toProvider)} for type: ${type}`);
+        throw new Error(`No conversions defined for target protocol: ${getProtocolPrefix(toProvider)} for type: ${type}`)
     }
 
-    const conversionFunction = toConversions[getProtocolPrefix(fromProvider)];
+    const conversionFunction = toConversions[getProtocolPrefix(fromProvider)]
     if (!conversionFunction) {
-        throw new Error(`No conversion function found from ${fromProvider} to ${toProvider} for type: ${type}`);
+        throw new Error(`No conversion function found from ${fromProvider} to ${toProvider} for type: ${type}`)
     }
 
-    console.log(conversionFunction);
+    console.log(conversionFunction)
     if (type === 'response' || type === 'streamChunk' || type === 'modelList') {
-        return conversionFunction(data, model);
+        return conversionFunction(data, model)
     } else {
-        return conversionFunction(data);
+        return conversionFunction(data)
     }
 }
 
@@ -97,23 +99,23 @@ export function convertData(data, type, fromProvider, toProvider, model) {
  * @param {Object} geminiRequest - The request body from the Gemini API.
  * @returns {Object} The formatted request body for the OpenAI API.
  */
-export function toOpenAIRequestFromGemini(geminiRequest) {
+export function toOpenAIRequestFromGemini (geminiRequest) {
     const openaiRequest = {
         messages: [],
         model: geminiRequest.model || "gpt-3.5-turbo", // Default model if not specified in Gemini request
         max_tokens: checkAndAssignOrDefault(geminiRequest.max_tokens, DEFAULT_MAX_TOKENS),
         temperature: checkAndAssignOrDefault(geminiRequest.temperature, DEFAULT_TEMPERATURE),
         top_p: checkAndAssignOrDefault(geminiRequest.top_p, DEFAULT_TOP_P),
-    };
+    }
 
     // Process system instruction
     if (geminiRequest.systemInstruction && Array.isArray(geminiRequest.systemInstruction.parts)) {
-        const systemContent = processGeminiPartsToOpenAIContent(geminiRequest.systemInstruction.parts);
+        const systemContent = processGeminiPartsToOpenAIContent(geminiRequest.systemInstruction.parts)
         if (systemContent) {
             openaiRequest.messages.push({
                 role: 'system',
                 content: systemContent
-            });
+            })
         }
     }
 
@@ -121,19 +123,19 @@ export function toOpenAIRequestFromGemini(geminiRequest) {
     if (geminiRequest.contents && Array.isArray(geminiRequest.contents)) {
         geminiRequest.contents.forEach(content => {
             if (content && Array.isArray(content.parts)) {
-                const openaiContent = processGeminiPartsToOpenAIContent(content.parts);
+                const openaiContent = processGeminiPartsToOpenAIContent(content.parts)
                 if (openaiContent && openaiContent.length > 0) {
-                    const openaiRole = content.role === 'model' ? 'assistant' : content.role;
+                    const openaiRole = content.role === 'model' ? 'assistant' : content.role
                     openaiRequest.messages.push({
                         role: openaiRole,
                         content: openaiContent
-                    });
+                    })
                 }
             }
-        });
+        })
     }
 
-    return openaiRequest;
+    return openaiRequest
 }
 
 /**
@@ -141,38 +143,38 @@ export function toOpenAIRequestFromGemini(geminiRequest) {
  * @param {Array} parts - Array of Gemini parts.
  * @returns {Array|string} OpenAI content format.
  */
-function processGeminiPartsToOpenAIContent(parts) {
-    if (!parts || !Array.isArray(parts)) return '';
-    
-    const contentArray = [];
-    
+function processGeminiPartsToOpenAIContent (parts) {
+    if (!parts || !Array.isArray(parts)) return ''
+
+    const contentArray = []
+
     parts.forEach(part => {
-        if (!part) return;
-        
+        if (!part) return
+
         // Handle text content
         if (typeof part.text === 'string') {
             contentArray.push({
                 type: 'text',
                 text: part.text
-            });
+            })
         }
-        
+
         // Handle inline data (images, audio)
         if (part.inlineData) {
-            const { mimeType, data } = part.inlineData;
+            const { mimeType, data } = part.inlineData
             if (mimeType && data) {
                 contentArray.push({
                     type: 'image_url',
                     image_url: {
                         url: `data:${mimeType};base64,${data}`
                     }
-                });
+                })
             }
         }
-        
+
         // Handle file data
         if (part.fileData) {
-            const { mimeType, fileUri } = part.fileData;
+            const { mimeType, fileUri } = part.fileData
             if (mimeType && fileUri) {
                 // For file URIs, we need to determine if it's an image or audio
                 if (mimeType.startsWith('image/')) {
@@ -181,26 +183,26 @@ function processGeminiPartsToOpenAIContent(parts) {
                         image_url: {
                             url: fileUri
                         }
-                    });
+                    })
                 } else if (mimeType.startsWith('audio/')) {
                     // For audio, we'll use a placeholder or handle as text description
                     contentArray.push({
                         type: 'text',
                         text: `[Audio file: ${fileUri}]`
-                    });
+                    })
                 }
             }
         }
-    });
-    
+    })
+
     // Return as array for multimodal, or string for simple text
     return contentArray.length === 1 && contentArray[0].type === 'text'
         ? contentArray[0].text
-        : contentArray;
+        : contentArray
 }
 
 
-export function toOpenAIModelListFromGemini(geminiModels) {
+export function toOpenAIModelListFromGemini (geminiModels) {
     return {
         object: "list",
         data: geminiModels.models.map(m => ({
@@ -209,12 +211,12 @@ export function toOpenAIModelListFromGemini(geminiModels) {
             created: Math.floor(Date.now() / 1000),
             owned_by: "google",
         })),
-    };
+    }
 }
 
-export function toOpenAIChatCompletionFromGemini(geminiResponse, model) {
-    const content = processGeminiResponseContent(geminiResponse);
-    
+export function toOpenAIChatCompletionFromGemini (geminiResponse, model) {
+    const content = processGeminiResponseContent(geminiResponse)
+
     return {
         id: `chatcmpl-${uuidv4()}`,
         object: "chat.completion",
@@ -237,7 +239,7 @@ export function toOpenAIChatCompletionFromGemini(geminiResponse, model) {
             completion_tokens: 0,
             total_tokens: 0,
         },
-    };
+    }
 }
 
 /**
@@ -245,27 +247,27 @@ export function toOpenAIChatCompletionFromGemini(geminiResponse, model) {
  * @param {Object} geminiResponse - The Gemini API response.
  * @returns {string|Array} Processed content.
  */
-function processGeminiResponseContent(geminiResponse) {
-    if (!geminiResponse || !geminiResponse.candidates) return '';
-    
-    const contents = [];
-    
+function processGeminiResponseContent (geminiResponse) {
+    if (!geminiResponse || !geminiResponse.candidates) return ''
+
+    const contents = []
+
     geminiResponse.candidates.forEach(candidate => {
         if (candidate.content && candidate.content.parts) {
             candidate.content.parts.forEach(part => {
                 if (part.text) {
-                    contents.push(part.text);
+                    contents.push(part.text)
                 }
                 // Note: Gemini response typically doesn't include multimodal content in responses
                 // but we handle it for completeness
-            });
+            })
         }
-    });
-    
-    return contents.join('\n');
+    })
+
+    return contents.join('\n')
 }
 
-export function toOpenAIStreamChunkFromGemini(geminiChunk, model) {
+export function toOpenAIStreamChunkFromGemini (geminiChunk, model) {
     return {
         id: `chatcmpl-${uuidv4()}`, // uuidv4 needs to be imported or handled
         object: "chat.completion.chunk",
@@ -285,7 +287,59 @@ export function toOpenAIStreamChunkFromGemini(geminiChunk, model) {
             completion_tokens: 0,
             total_tokens: 0,
         },
-    };
+    }
+}
+
+// --- OpenAI -> Claude (response) ---
+export function toClaudeChatCompletionFromOpenAI (openaiResponse, model) {
+    // OpenAI chat.completions non-streaming → Claude messages response
+    const text = openaiResponse?.choices?.[0]?.message?.content || ''
+    return {
+        id: `msg_${uuidv4()}`,
+        type: "message",
+        role: "assistant",
+        content: text ? [{ type: 'text', text }] : [],
+        model: model,
+        stop_reason: 'end_turn',
+        stop_sequence: null,
+        usage: {
+            input_tokens: openaiResponse?.usage?.prompt_tokens || 0,
+            output_tokens: openaiResponse?.usage?.completion_tokens || 0,
+        }
+    }
+}
+
+// --- OpenAI -> Claude (stream) ---
+export function toClaudeStreamChunkFromOpenAI (openaiChunk, model) {
+    if (!openaiChunk) return null
+    // Match OpenAI streaming chunk shape
+    const choice = openaiChunk.choices?.[0]
+    const deltaText = choice?.delta?.content || ''
+    const finishReason = choice?.finish_reason || null
+
+    if (deltaText) {
+        return {
+            type: "content_block_delta",
+            index: 0,
+            delta: {
+                type: "text_delta",
+                text: deltaText
+            }
+        }
+    }
+
+    if (finishReason === 'stop') {
+        return {
+            type: "message_delta",
+            delta: {
+                stop_reason: "end_turn",
+                stop_sequence: null
+            }
+        }
+    }
+
+    // ignore other chunks
+    return null
 }
 
 /**
@@ -294,7 +348,7 @@ export function toOpenAIStreamChunkFromGemini(geminiChunk, model) {
  * @param {string} model - The model name to include in the response.
  * @returns {Object} The formatted OpenAI chat completion response.
  */
-export function toOpenAIChatCompletionFromClaude(claudeResponse, model) {
+export function toOpenAIChatCompletionFromClaude (claudeResponse, model) {
     if (!claudeResponse || !claudeResponse.content || claudeResponse.content.length === 0) {
         return {
             id: `chatcmpl-${uuidv4()}`,
@@ -314,11 +368,11 @@ export function toOpenAIChatCompletionFromClaude(claudeResponse, model) {
                 completion_tokens: claudeResponse.usage?.output_tokens || 0,
                 total_tokens: (claudeResponse.usage?.input_tokens || 0) + (claudeResponse.usage?.output_tokens || 0),
             },
-        };
+        }
     }
 
-    const content = processClaudeResponseContent(claudeResponse.content);
-    const finishReason = claudeResponse.stop_reason === 'end_turn' ? 'stop' : claudeResponse.stop_reason;
+    const content = processClaudeResponseContent(claudeResponse.content)
+    const finishReason = claudeResponse.stop_reason === 'end_turn' ? 'stop' : claudeResponse.stop_reason
 
     return {
         id: `chatcmpl-${uuidv4()}`,
@@ -338,7 +392,7 @@ export function toOpenAIChatCompletionFromClaude(claudeResponse, model) {
             completion_tokens: claudeResponse.usage?.output_tokens || 0,
             total_tokens: (claudeResponse.usage?.input_tokens || 0) + (claudeResponse.usage?.output_tokens || 0),
         },
-    };
+    }
 }
 
 /**
@@ -346,22 +400,22 @@ export function toOpenAIChatCompletionFromClaude(claudeResponse, model) {
  * @param {Array} content - Array of Claude content blocks.
  * @returns {string|Array} Processed content.
  */
-function processClaudeResponseContent(content) {
-    if (!content || !Array.isArray(content)) return '';
-    
-    const contentArray = [];
-    
+function processClaudeResponseContent (content) {
+    if (!content || !Array.isArray(content)) return ''
+
+    const contentArray = []
+
     content.forEach(block => {
-        if (!block) return;
-        
+        if (!block) return
+
         switch (block.type) {
             case 'text':
                 contentArray.push({
                     type: 'text',
                     text: block.text || ''
-                });
-                break;
-                
+                })
+                break
+
             case 'image':
                 // Handle image blocks from Claude
                 if (block.source && block.source.type === 'base64') {
@@ -370,25 +424,25 @@ function processClaudeResponseContent(content) {
                         image_url: {
                             url: `data:${block.source.media_type};base64,${block.source.data}`
                         }
-                    });
+                    })
                 }
-                break;
-                
+                break
+
             default:
                 // Handle other content types as text
                 if (block.text) {
                     contentArray.push({
                         type: 'text',
                         text: block.text
-                    });
+                    })
                 }
         }
-    });
-    
+    })
+
     // Return as array for multimodal, or string for simple text
     return contentArray.length === 1 && contentArray[0].type === 'text'
         ? contentArray[0].text
-        : contentArray;
+        : contentArray
 }
 
 /**
@@ -398,9 +452,9 @@ function processClaudeResponseContent(content) {
  * @param {string} [model] - Optional model name to include in the response.
  * @returns {Object} The formatted OpenAI chat completion stream chunk, or an empty object for events that don't map.
  */
-export function toOpenAIStreamChunkFromClaude(claudeChunk, model) {
+export function toOpenAIStreamChunkFromClaude (claudeChunk, model) {
     if (!claudeChunk) {
-        return null;
+        return null
     }
     return {
         id: `chatcmpl-${uuidv4()}`, // uuidv4 needs to be imported or handled
@@ -410,7 +464,7 @@ export function toOpenAIStreamChunkFromClaude(claudeChunk, model) {
         system_fingerprint: "",
         choices: [{
             index: 0,
-            delta: { 
+            delta: {
                 content: claudeChunk,
                 reasoning_content: ""
             },
@@ -420,15 +474,15 @@ export function toOpenAIStreamChunkFromClaude(claudeChunk, model) {
                 reasoning_content: ""
             }
         }],
-        usage:{
+        usage: {
             prompt_tokens: 0,
             completion_tokens: 0,
             total_tokens: 0,
         },
-    };
+    }
 }
 
-export function getOpenAIStreamChunkStop(model) {
+export function getOpenAIStreamChunkStop (model) {
     return {
         id: `chatcmpl-${uuidv4()}`, // uuidv4 needs to be imported or handled
         object: "chat.completion.chunk",
@@ -437,7 +491,7 @@ export function getOpenAIStreamChunkStop(model) {
         system_fingerprint: "",
         choices: [{
             index: 0,
-            delta: { 
+            delta: {
                 content: "",
                 reasoning_content: ""
             },
@@ -447,12 +501,12 @@ export function getOpenAIStreamChunkStop(model) {
                 reasoning_content: ""
             }
         }],
-        usage:{
+        usage: {
             prompt_tokens: 0,
             completion_tokens: 0,
             total_tokens: 0,
         },
-    };
+    }
 }
 
 
@@ -462,7 +516,7 @@ export function getOpenAIStreamChunkStop(model) {
  * @param {Array<Object>} claudeModels - The array of model objects from Claude API.
  * @returns {Object} The formatted OpenAI model list response.
  */
-export function toOpenAIModelListFromClaude(claudeModels) {
+export function toOpenAIModelListFromClaude (claudeModels) {
     return {
         object: "list",
         data: claudeModels.models.map(m => ({
@@ -473,7 +527,7 @@ export function toOpenAIModelListFromClaude(claudeModels) {
             // You can add more properties here if they exist in Claude's model response
             // and you want to map them to OpenAI's format, e.g., permissions.
         })),
-    };
+    }
 }
 
 
@@ -484,33 +538,33 @@ export function toOpenAIModelListFromClaude(claudeModels) {
  * @param {Object} claudeRequest - The request body from the Claude API.
  * @returns {Object} The formatted request body for the OpenAI API.
  */
-export function toOpenAIRequestFromClaude(claudeRequest) {
-    const openaiMessages = [];
-    let systemMessageContent = '';
+export function toOpenAIRequestFromClaude (claudeRequest) {
+    const openaiMessages = []
+    let systemMessageContent = ''
 
     // Claude system message handling
     if (claudeRequest.system) {
-        systemMessageContent = claudeRequest.system;
+        systemMessageContent = claudeRequest.system
     }
 
     if (claudeRequest.messages && Array.isArray(claudeRequest.messages)) {
         claudeRequest.messages.forEach(message => {
-            const openaiRole = message.role === 'assistant' ? 'assistant' : 'user';
-            const content = message.content; // Claude content can be string or array
+            const openaiRole = message.role === 'assistant' ? 'assistant' : 'user'
+            const content = message.content // Claude content can be string or array
 
             if (typeof content === 'string') {
-                openaiMessages.push({ role: openaiRole, content: content });
+                openaiMessages.push({ role: openaiRole, content: content })
             } else if (Array.isArray(content)) {
                 // Process multimodal content
-                const processedContent = processClaudeContentToOpenAIContent(content);
+                const processedContent = processClaudeContentToOpenAIContent(content)
                 if (processedContent && processedContent.length > 0) {
                     openaiMessages.push({
                         role: openaiRole,
                         content: processedContent
-                    });
+                    })
                 }
             }
-        });
+        })
     }
 
     const openaiRequest = {
@@ -520,14 +574,14 @@ export function toOpenAIRequestFromClaude(claudeRequest) {
         temperature: checkAndAssignOrDefault(claudeRequest.temperature, DEFAULT_TEMPERATURE),
         top_p: checkAndAssignOrDefault(claudeRequest.top_p, DEFAULT_TOP_P),
         // stream: claudeRequest.stream, // Stream mode is handled by different endpoint
-    };
+    }
 
     // Add system message at the beginning if present
     if (systemMessageContent) {
-        openaiRequest.messages.unshift({ role: 'system', content: systemMessageContent });
+        openaiRequest.messages.unshift({ role: 'system', content: systemMessageContent })
     }
 
-    return openaiRequest;
+    return openaiRequest
 }
 
 /**
@@ -535,24 +589,24 @@ export function toOpenAIRequestFromClaude(claudeRequest) {
  * @param {Array} content - Array of Claude content blocks.
  * @returns {Array} OpenAI content format.
  */
-function processClaudeContentToOpenAIContent(content) {
-    if (!content || !Array.isArray(content)) return [];
-    
-    const contentArray = [];
-    
+function processClaudeContentToOpenAIContent (content) {
+    if (!content || !Array.isArray(content)) return []
+
+    const contentArray = []
+
     content.forEach(block => {
-        if (!block) return;
-        
+        if (!block) return
+
         switch (block.type) {
             case 'text':
                 if (block.text) {
                     contentArray.push({
                         type: 'text',
                         text: block.text
-                    });
+                    })
                 }
-                break;
-                
+                break
+
             case 'image':
                 // Handle image blocks from Claude
                 if (block.source && block.source.type === 'base64') {
@@ -561,38 +615,38 @@ function processClaudeContentToOpenAIContent(content) {
                         image_url: {
                             url: `data:${block.source.media_type};base64,${block.source.data}`
                         }
-                    });
+                    })
                 }
-                break;
-                
+                break
+
             case 'tool_use':
                 // Handle tool use as text
                 contentArray.push({
                     type: 'text',
                     text: `[Tool use: ${block.name}]`
-                });
-                break;
-                
+                })
+                break
+
             case 'tool_result':
                 // Handle tool results as text
                 contentArray.push({
                     type: 'text',
                     text: typeof block.content === 'string' ? block.content : JSON.stringify(block.content)
-                });
-                break;
-                
+                })
+                break
+
             default:
                 // Handle any other content types as text
                 if (block.text) {
                     contentArray.push({
                         type: 'text',
                         text: block.text
-                    });
+                    })
                 }
         }
-    });
-    
-    return contentArray;
+    })
+
+    return contentArray
 }
 
 
@@ -602,20 +656,20 @@ function processClaudeContentToOpenAIContent(content) {
  * @param {Object} openaiRequest - The request body from the OpenAI API.
  * @returns {Object} The formatted request body for the Gemini API.
  */
-export function toGeminiRequestFromOpenAI(openaiRequest) {
-    const messages = openaiRequest.messages || [];
-    const { systemInstruction, nonSystemMessages } = extractAndProcessSystemMessages(messages);
-    
+export function toGeminiRequestFromOpenAI (openaiRequest) {
+    const messages = openaiRequest.messages || []
+    const { systemInstruction, nonSystemMessages } = extractAndProcessSystemMessages(messages)
+
     // Process messages with role conversion and multimodal support
-    const processedMessages = [];
-    let lastMessage = null;
-    
+    const processedMessages = []
+    let lastMessage = null
+
     for (const message of nonSystemMessages) {
-        const geminiRole = message.role === 'assistant' ? 'model' : message.role;
-        
+        const geminiRole = message.role === 'assistant' ? 'model' : message.role
+
         // Handle tool responses
         if (geminiRole === 'tool') {
-            if (lastMessage) processedMessages.push(lastMessage);
+            if (lastMessage) processedMessages.push(lastMessage)
             processedMessages.push({
                 role: 'function',
                 parts: [{
@@ -624,34 +678,34 @@ export function toGeminiRequestFromOpenAI(openaiRequest) {
                         response: { content: safeParseJSON(message.content) }
                     }
                 }]
-            });
-            lastMessage = null;
-            continue;
+            })
+            lastMessage = null
+            continue
         }
-        
+
         // Process multimodal content
-        const processedContent = processOpenAIContentToGeminiParts(message.content);
-        
+        const processedContent = processOpenAIContentToGeminiParts(message.content)
+
         // Merge consecutive text messages
         if (lastMessage && lastMessage.role === geminiRole && !message.tool_calls &&
             Array.isArray(processedContent) && processedContent.every(p => p.text) &&
             Array.isArray(lastMessage.parts) && lastMessage.parts.every(p => p.text)) {
-            lastMessage.parts.push(...processedContent);
-            continue;
+            lastMessage.parts.push(...processedContent)
+            continue
         }
-        
-        if (lastMessage) processedMessages.push(lastMessage);
-        lastMessage = { role: geminiRole, parts: processedContent };
+
+        if (lastMessage) processedMessages.push(lastMessage)
+        lastMessage = { role: geminiRole, parts: processedContent }
     }
-    if (lastMessage) processedMessages.push(lastMessage);
-    
+    if (lastMessage) processedMessages.push(lastMessage)
+
     // Build Gemini request
     const geminiRequest = {
         contents: processedMessages.filter(item => item.parts && item.parts.length > 0)
-    };
-    
-    if (systemInstruction) geminiRequest.systemInstruction = systemInstruction;
-    
+    }
+
+    if (systemInstruction) geminiRequest.systemInstruction = systemInstruction
+
     // Handle tools and tool_choice
     if (openaiRequest.tools?.length) {
         geminiRequest.tools = [{
@@ -660,23 +714,23 @@ export function toGeminiRequestFromOpenAI(openaiRequest) {
                 description: t.function.description,
                 parameters: t.function.parameters
             }))
-        }];
+        }]
     }
-    
+
     if (openaiRequest.tool_choice) {
-        geminiRequest.toolConfig = buildToolConfig(openaiRequest.tool_choice);
+        geminiRequest.toolConfig = buildToolConfig(openaiRequest.tool_choice)
     }
-    
+
     // Add generation config
-    const config = buildGenerationConfig(openaiRequest);
-    if (Object.keys(config).length) geminiRequest.generationConfig = config;
-    
+    const config = buildGenerationConfig(openaiRequest)
+    if (Object.keys(config).length) geminiRequest.generationConfig = config
+
     // Validation
     if (geminiRequest.contents[0]?.role !== 'user') {
-        console.warn(`[Request Conversion] Warning: Conversation does not start with a 'user' role.`);
+        console.warn(`[Request Conversion] Warning: Conversation does not start with a 'user' role.`)
     }
-    
-    return geminiRequest;
+
+    return geminiRequest
 }
 
 /**
@@ -684,44 +738,44 @@ export function toGeminiRequestFromOpenAI(openaiRequest) {
  * @param {string|Array} content - OpenAI message content.
  * @returns {Array} Array of Gemini parts.
  */
-function processOpenAIContentToGeminiParts(content) {
-    if (!content) return [];
-    
+function processOpenAIContentToGeminiParts (content) {
+    if (!content) return []
+
     // Handle string content
     if (typeof content === 'string') {
-        return [{ text: content }];
+        return [{ text: content }]
     }
-    
+
     // Handle array content (multimodal)
     if (Array.isArray(content)) {
-        const parts = [];
-        
+        const parts = []
+
         content.forEach(item => {
-            if (!item) return;
-            
+            if (!item) return
+
             switch (item.type) {
                 case 'text':
                     if (item.text) {
-                        parts.push({ text: item.text });
+                        parts.push({ text: item.text })
                     }
-                    break;
-                    
+                    break
+
                 case 'image_url':
                     if (item.image_url) {
                         const imageUrl = typeof item.image_url === 'string'
                             ? item.image_url
-                            : item.image_url.url;
-                            
+                            : item.image_url.url
+
                         if (imageUrl.startsWith('data:')) {
                             // Handle base64 data URL
-                            const [header, data] = imageUrl.split(',');
-                            const mimeType = header.match(/data:([^;]+)/)?.[1] || 'image/jpeg';
+                            const [header, data] = imageUrl.split(',')
+                            const mimeType = header.match(/data:([^;]+)/)?.[1] || 'image/jpeg'
                             parts.push({
                                 inlineData: {
                                     mimeType,
                                     data
                                 }
-                            });
+                            })
                         } else {
                             // Handle regular URL
                             parts.push({
@@ -729,71 +783,71 @@ function processOpenAIContentToGeminiParts(content) {
                                     mimeType: 'image/jpeg', // Default MIME type
                                     fileUri: imageUrl
                                 }
-                            });
+                            })
                         }
                     }
-                    break;
-                    
+                    break
+
                 case 'audio':
                     // Handle audio content
                     if (item.audio_url) {
                         const audioUrl = typeof item.audio_url === 'string'
                             ? item.audio_url
-                            : item.audio_url.url;
-                            
+                            : item.audio_url.url
+
                         if (audioUrl.startsWith('data:')) {
-                            const [header, data] = audioUrl.split(',');
-                            const mimeType = header.match(/data:([^;]+)/)?.[1] || 'audio/wav';
+                            const [header, data] = audioUrl.split(',')
+                            const mimeType = header.match(/data:([^;]+)/)?.[1] || 'audio/wav'
                             parts.push({
                                 inlineData: {
                                     mimeType,
                                     data
                                 }
-                            });
+                            })
                         } else {
                             parts.push({
                                 fileData: {
                                     mimeType: 'audio/wav', // Default MIME type
                                     fileUri: audioUrl
                                 }
-                            });
+                            })
                         }
                     }
-                    break;
+                    break
             }
-        });
-        
-        return parts;
+        })
+
+        return parts
     }
-    
-    return [];
+
+    return []
 }
 
-function safeParseJSON(str) {
+function safeParseJSON (str) {
     try {
-        return JSON.parse(str || '{}');
+        return JSON.parse(str || '{}')
     } catch {
-        return str;
+        return str
     }
 }
 
-function buildToolConfig(toolChoice) {
+function buildToolConfig (toolChoice) {
     if (typeof toolChoice === 'string' && ['none', 'auto'].includes(toolChoice)) {
-        return { functionCallingConfig: { mode: toolChoice.toUpperCase() } };
+        return { functionCallingConfig: { mode: toolChoice.toUpperCase() } }
     }
     if (typeof toolChoice === 'object' && toolChoice.function) {
-        return { functionCallingConfig: { mode: 'ANY', allowedFunctionNames: [toolChoice.function.name] } };
+        return { functionCallingConfig: { mode: 'ANY', allowedFunctionNames: [toolChoice.function.name] } }
     }
-    return null;
+    return null
 }
 
-function buildGenerationConfig({ temperature, max_tokens, top_p, stop }) {
-    const config = {};
-    config.temperature = checkAndAssignOrDefault(temperature, DEFAULT_TEMPERATURE);
-    config.maxOutputTokens = checkAndAssignOrDefault(max_tokens, DEFAULT_GEMINI_MAX_TOKENS);
-    config.topP = checkAndAssignOrDefault(top_p, DEFAULT_TOP_P);
-    if (stop !== undefined) config.stopSequences = Array.isArray(stop) ? stop : [stop];
-    return config;
+function buildGenerationConfig ({ temperature, max_tokens, top_p, stop }) {
+    const config = {}
+    config.temperature = checkAndAssignOrDefault(temperature, DEFAULT_TEMPERATURE)
+    config.maxOutputTokens = checkAndAssignOrDefault(max_tokens, DEFAULT_GEMINI_MAX_TOKENS)
+    config.topP = checkAndAssignOrDefault(top_p, DEFAULT_TOP_P)
+    if (stop !== undefined) config.stopSequences = Array.isArray(stop) ? stop : [stop]
+    return config
 }
 
 
@@ -803,15 +857,15 @@ function buildGenerationConfig({ temperature, max_tokens, top_p, stop }) {
  * @param {Object} openaiRequest - The request body from the OpenAI API.
  * @returns {Object} The formatted request body for the Claude API.
  */
-export function toClaudeRequestFromOpenAI(openaiRequest) {
-    const messages = openaiRequest.messages || [];
-    const { systemInstruction, nonSystemMessages } = extractAndProcessSystemMessages(messages);
+export function toClaudeRequestFromOpenAI (openaiRequest) {
+    const messages = openaiRequest.messages || []
+    const { systemInstruction, nonSystemMessages } = extractAndProcessSystemMessages(messages)
 
-    const claudeMessages = [];
+    const claudeMessages = []
 
     for (const message of nonSystemMessages) {
-        const role = message.role === 'assistant' ? 'assistant' : 'user';
-        let content = [];
+        const role = message.role === 'assistant' ? 'assistant' : 'user'
+        let content = []
 
         if (message.role === 'tool') {
             // Claude expects tool_result to be in a 'user' message
@@ -820,8 +874,8 @@ export function toClaudeRequestFromOpenAI(openaiRequest) {
                 type: 'tool_result',
                 tool_use_id: message.tool_call_id, // Use tool_call_id from OpenAI tool message
                 content: safeParseJSON(message.content) // Parse content as JSON if possible
-            });
-            claudeMessages.push({ role: 'user', content: content });
+            })
+            claudeMessages.push({ role: 'user', content: content })
         } else if (message.role === 'assistant' && message.tool_calls?.length) {
             // Assistant message with tool calls - properly format as tool_use blocks
             // Claude expects tool_use to be in an 'assistant' message
@@ -830,31 +884,31 @@ export function toClaudeRequestFromOpenAI(openaiRequest) {
                 id: tc.id,
                 name: tc.function.name,
                 input: safeParseJSON(tc.function.arguments)
-            }));
-            claudeMessages.push({ role: 'assistant', content: toolUseBlocks });
+            }))
+            claudeMessages.push({ role: 'assistant', content: toolUseBlocks })
         } else {
             // Regular user or assistant message (text and multimodal)
             if (typeof message.content === 'string') {
                 if (message.content) {
-                    content.push({ type: 'text', text: message.content });
+                    content.push({ type: 'text', text: message.content })
                 }
             } else if (Array.isArray(message.content)) {
                 message.content.forEach(item => {
-                    if (!item) return;
+                    if (!item) return
                     switch (item.type) {
                         case 'text':
                             if (item.text) {
-                                content.push({ type: 'text', text: item.text });
+                                content.push({ type: 'text', text: item.text })
                             }
-                            break;
+                            break
                         case 'image_url':
                             if (item.image_url) {
                                 const imageUrl = typeof item.image_url === 'string'
                                     ? item.image_url
-                                    : item.image_url.url;
+                                    : item.image_url.url
                                 if (imageUrl.startsWith('data:')) {
-                                    const [header, data] = imageUrl.split(',');
-                                    const mediaType = header.match(/data:([^;]+)/)?.[1] || 'image/jpeg';
+                                    const [header, data] = imageUrl.split(',')
+                                    const mediaType = header.match(/data:([^;]+)/)?.[1] || 'image/jpeg'
                                     content.push({
                                         type: 'image',
                                         source: {
@@ -862,28 +916,28 @@ export function toClaudeRequestFromOpenAI(openaiRequest) {
                                             media_type: mediaType,
                                             data: data
                                         }
-                                    });
+                                    })
                                 } else {
                                     // Claude requires base64 for images, so for URLs, we'll represent as text
-                                    content.push({ type: 'text', text: `[Image: ${imageUrl}]` });
+                                    content.push({ type: 'text', text: `[Image: ${imageUrl}]` })
                                 }
                             }
-                            break;
+                            break
                         case 'audio':
                             // Handle audio content as text placeholder
                             if (item.audio_url) {
                                 const audioUrl = typeof item.audio_url === 'string'
                                     ? item.audio_url
-                                    : item.audio_url.url;
-                                content.push({ type: 'text', text: `[Audio: ${audioUrl}]` });
+                                    : item.audio_url.url
+                                content.push({ type: 'text', text: `[Audio: ${audioUrl}]` })
                             }
-                            break;
+                            break
                     }
-                });
+                })
             }
             // Only add message if content is not empty
             if (content.length > 0) {
-                claudeMessages.push({ role: role, content: content });
+                claudeMessages.push({ role: role, content: content })
             }
         }
     }
@@ -894,10 +948,10 @@ export function toClaudeRequestFromOpenAI(openaiRequest) {
         max_tokens: checkAndAssignOrDefault(openaiRequest.max_tokens, DEFAULT_MAX_TOKENS),
         temperature: checkAndAssignOrDefault(openaiRequest.temperature, DEFAULT_TEMPERATURE),
         top_p: checkAndAssignOrDefault(openaiRequest.top_p, DEFAULT_TOP_P),
-    };
+    }
 
     if (systemInstruction) {
-        claudeRequest.system = extractTextFromMessageContent(systemInstruction.parts[0].text);
+        claudeRequest.system = extractTextFromMessageContent(systemInstruction.parts[0].text)
     }
 
     if (openaiRequest.tools?.length) {
@@ -905,22 +959,22 @@ export function toClaudeRequestFromOpenAI(openaiRequest) {
             name: t.function.name,
             description: t.function.description || '',
             input_schema: t.function.parameters || { type: 'object', properties: {} }
-        }));
-        claudeRequest.tool_choice = buildClaudeToolChoice(openaiRequest.tool_choice);
+        }))
+        claudeRequest.tool_choice = buildClaudeToolChoice(openaiRequest.tool_choice)
     }
 
-    return claudeRequest;
+    return claudeRequest
 }
 
-function buildClaudeToolChoice(toolChoice) {
+function buildClaudeToolChoice (toolChoice) {
     if (typeof toolChoice === 'string') {
-        const mapping = { auto: 'auto', none: 'none', required: 'any' };
-        return { type: mapping[toolChoice] };
+        const mapping = { auto: 'auto', none: 'none', required: 'any' }
+        return { type: mapping[toolChoice] }
     }
     if (typeof toolChoice === 'object' && toolChoice.function) {
-        return { type: 'tool', name: toolChoice.function.name };
+        return { type: 'tool', name: toolChoice.function.name }
     }
-    return undefined;
+    return undefined
 }
 
 
@@ -931,27 +985,27 @@ function buildClaudeToolChoice(toolChoice) {
  * @returns {{systemInstruction: Object|null, nonSystemMessages: Array<Object>}}
  *          An object containing the system instruction and an array of non-system messages.
  */
-export function extractAndProcessSystemMessages(messages) {
-    const systemContents = [];
-    const nonSystemMessages = [];
+export function extractAndProcessSystemMessages (messages) {
+    const systemContents = []
+    const nonSystemMessages = []
 
     for (const message of messages) {
         if (message.role === 'system') {
-            systemContents.push(extractTextFromMessageContent(message.content));
+            systemContents.push(extractTextFromMessageContent(message.content))
         } else {
-            nonSystemMessages.push(message);
+            nonSystemMessages.push(message)
         }
     }
 
-    let systemInstruction = null;
+    let systemInstruction = null
     if (systemContents.length > 0) {
         systemInstruction = {
             parts: [{
                 text: systemContents.join('\n')
             }]
-        };
+        }
     }
-    return { systemInstruction, nonSystemMessages };
+    return { systemInstruction, nonSystemMessages }
 }
 
 /**
@@ -959,17 +1013,17 @@ export function extractAndProcessSystemMessages(messages) {
  * @param {string|Array<Object>} content - The content from a message object.
  * @returns {string} The extracted text.
  */
-export function extractTextFromMessageContent(content) {
+export function extractTextFromMessageContent (content) {
     if (typeof content === 'string') {
-        return content;
+        return content
     }
     if (Array.isArray(content)) {
         return content
             .filter(part => part.type === 'text' && part.text)
             .map(part => part.text)
-            .join('\n');
+            .join('\n')
     }
-    return '';
+    return ''
 }
 
 /**
@@ -977,9 +1031,9 @@ export function extractTextFromMessageContent(content) {
  * @param {string} dataUrl - Data URL string
  * @returns {string} MIME type
  */
-function detectMimeType(dataUrl) {
-    const match = dataUrl.match(/^data:([^;]+);base64,/);
-    return match ? match[1] : 'application/octet-stream';
+function detectMimeType (dataUrl) {
+    const match = dataUrl.match(/^data:([^;]+);base64,/)
+    return match ? match[1] : 'application/octet-stream'
 }
 
 /**
@@ -987,8 +1041,8 @@ function detectMimeType(dataUrl) {
  * @param {string} dataUrl - Data URL string
  * @returns {string} Base64 data
  */
-function extractBase64Data(dataUrl) {
-    return dataUrl.replace(/^data:[^;]+;base64,/, '');
+function extractBase64Data (dataUrl) {
+    return dataUrl.replace(/^data:[^;]+;base64,/, '')
 }
 
 /**
@@ -996,12 +1050,12 @@ function extractBase64Data(dataUrl) {
  * @param {string} mimeType - MIME type to validate
  * @returns {boolean} Whether it's a valid image type
  */
-function isValidImageType(mimeType) {
+function isValidImageType (mimeType) {
     const validTypes = [
         'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
         'image/webp', 'image/bmp', 'image/tiff'
-    ];
-    return validTypes.includes(mimeType.toLowerCase());
+    ]
+    return validTypes.includes(mimeType.toLowerCase())
 }
 
 /**
@@ -1009,12 +1063,12 @@ function isValidImageType(mimeType) {
  * @param {string} mimeType - MIME type to validate
  * @returns {boolean} Whether it's a valid audio type
  */
-function isValidAudioType(mimeType) {
+function isValidAudioType (mimeType) {
     const validTypes = [
         'audio/wav', 'audio/wave', 'audio/mp3', 'audio/mpeg',
         'audio/ogg', 'audio/aac', 'audio/flac', 'audio/m4a'
-    ];
-    return validTypes.includes(mimeType.toLowerCase());
+    ]
+    return validTypes.includes(mimeType.toLowerCase())
 }
 
 /**
@@ -1029,38 +1083,38 @@ function isValidAudioType(mimeType) {
  * @param {Object} claudeRequest - The request body from the Claude API.
  * @returns {Object} The formatted request body for the Gemini API.
  */
-export function toGeminiRequestFromClaude(claudeRequest) {
+export function toGeminiRequestFromClaude (claudeRequest) {
     // Ensure claudeRequest is a valid object
     if (!claudeRequest || typeof claudeRequest !== 'object') {
-        console.warn("Invalid claudeRequest provided to toGeminiRequestFromClaude.");
-        return { contents: [] };
+        console.warn("Invalid claudeRequest provided to toGeminiRequestFromClaude.")
+        return { contents: [] }
     }
 
     const geminiRequest = {
         contents: []
-    };
+    }
 
     // Handle system instruction
     if (claudeRequest.system) {
-        let incomingSystemText = null;
+        let incomingSystemText = null
         if (typeof claudeRequest.system === 'string') {
-            incomingSystemText = claudeRequest.system;
+            incomingSystemText = claudeRequest.system
         } else if (typeof claudeRequest.system === 'object') {
-            incomingSystemText = JSON.stringify(claudeRequest.system);
+            incomingSystemText = JSON.stringify(claudeRequest.system)
         } else if (claudeRequest.messages?.length > 0) {
             // Fallback to first user message if no system property
-            const userMessage = claudeRequest.messages.find(m => m.role === 'user');
+            const userMessage = claudeRequest.messages.find(m => m.role === 'user')
             if (userMessage) {
                 if (Array.isArray(userMessage.content)) {
-                    incomingSystemText = userMessage.content.map(block => block.text).join('');
+                    incomingSystemText = userMessage.content.map(block => block.text).join('')
                 } else {
-                    incomingSystemText = userMessage.content;
+                    incomingSystemText = userMessage.content
                 }
             }
         }
         geminiRequest.systemInstruction = {
-            parts: [{ text: incomingSystemText}] // Ensure system is string
-        };
+            parts: [{ text: incomingSystemText }] // Ensure system is string
+        }
     }
 
     // Process messages
@@ -1068,12 +1122,12 @@ export function toGeminiRequestFromClaude(claudeRequest) {
         claudeRequest.messages.forEach(message => {
             // Ensure message is a valid object and has a role and content
             if (!message || typeof message !== 'object' || !message.role || !message.content) {
-                console.warn("Skipping invalid message in claudeRequest.messages.");
-                return;
+                console.warn("Skipping invalid message in claudeRequest.messages.")
+                return
             }
 
-            const geminiRole = message.role === 'assistant' ? 'model' : 'user';
-            const processedParts = processClaudeContentToGeminiParts(message.content);
+            const geminiRole = message.role === 'assistant' ? 'model' : 'user'
+            const processedParts = processClaudeContentToGeminiParts(message.content)
 
             // If the processed parts contain a function response, it should be a 'function' role message
             // Claude's tool_result block does not contain the function name, only tool_use_id.
@@ -1081,29 +1135,29 @@ export function toGeminiRequestFromClaude(claudeRequest) {
             // For simplicity in this conversion, we'll assume the tool_use_id is the function name
             // or that the tool_result is always preceded by a tool_use with the correct name.
             // A more robust solution would involve tracking tool_use_ids to function names.
-            const functionResponsePart = processedParts.find(part => part.functionResponse);
+            const functionResponsePart = processedParts.find(part => part.functionResponse)
             if (functionResponsePart) {
                 geminiRequest.contents.push({
                     role: 'function',
                     parts: [functionResponsePart]
-                });
+                })
             } else if (processedParts.length > 0) { // Only push if there are actual parts
                 geminiRequest.contents.push({
                     role: geminiRole,
                     parts: processedParts
-                });
+                })
             }
-        });
+        })
     }
 
     // Add generation config
-    const generationConfig = {};
-    generationConfig.maxOutputTokens = checkAndAssignOrDefault(claudeRequest.max_tokens, DEFAULT_GEMINI_MAX_TOKENS);
-    generationConfig.temperature = checkAndAssignOrDefault(claudeRequest.temperature, DEFAULT_TEMPERATURE);
-    generationConfig.topP = checkAndAssignOrDefault(claudeRequest.top_p, DEFAULT_TOP_P);
-    
+    const generationConfig = {}
+    generationConfig.maxOutputTokens = checkAndAssignOrDefault(claudeRequest.max_tokens, DEFAULT_GEMINI_MAX_TOKENS)
+    generationConfig.temperature = checkAndAssignOrDefault(claudeRequest.temperature, DEFAULT_TEMPERATURE)
+    generationConfig.topP = checkAndAssignOrDefault(claudeRequest.top_p, DEFAULT_TOP_P)
+
     if (Object.keys(generationConfig).length > 0) {
-        geminiRequest.generationConfig = generationConfig;
+        geminiRequest.generationConfig = generationConfig
     }
 
     // Handle tools
@@ -1112,30 +1166,30 @@ export function toGeminiRequestFromClaude(claudeRequest) {
             functionDeclarations: claudeRequest.tools.map(tool => {
                 // Ensure tool is a valid object and has a name
                 if (!tool || typeof tool !== 'object' || !tool.name) {
-                    console.warn("Skipping invalid tool declaration in claudeRequest.tools.");
-                    return null; // Return null for invalid tools, filter out later
+                    console.warn("Skipping invalid tool declaration in claudeRequest.tools.")
+                    return null // Return null for invalid tools, filter out later
                 }
 
-                delete tool.input_schema.$schema;
+                delete tool.input_schema.$schema
                 return {
                     name: String(tool.name), // Ensure name is string
                     description: String(tool.description || ''), // Ensure description is string
                     parameters: tool.input_schema && typeof tool.input_schema === 'object' ? tool.input_schema : { type: 'object', properties: {} }
-                };
+                }
             }).filter(Boolean) // Filter out any nulls from invalid tool declarations
-        }];
+        }]
         // If no valid functionDeclarations, remove the tools array
         if (geminiRequest.tools[0].functionDeclarations.length === 0) {
-            delete geminiRequest.tools;
+            delete geminiRequest.tools
         }
     }
 
     // Handle tool_choice
     if (claudeRequest.tool_choice) {
-        geminiRequest.toolConfig = buildGeminiToolConfigFromClaude(claudeRequest.tool_choice);
+        geminiRequest.toolConfig = buildGeminiToolConfigFromClaude(claudeRequest.tool_choice)
     }
 
-    return geminiRequest;
+    return geminiRequest
 }
 
 /**
@@ -1143,26 +1197,26 @@ export function toGeminiRequestFromClaude(claudeRequest) {
  * @param {Object} claudeToolChoice - The tool_choice object from Claude API.
  * @returns {Object|undefined} The formatted toolConfig for Gemini API, or undefined if invalid.
  */
-function buildGeminiToolConfigFromClaude(claudeToolChoice) {
+function buildGeminiToolConfigFromClaude (claudeToolChoice) {
     if (!claudeToolChoice || typeof claudeToolChoice !== 'object' || !claudeToolChoice.type) {
-        console.warn("Invalid claudeToolChoice provided to buildGeminiToolConfigFromClaude.");
-        return undefined;
+        console.warn("Invalid claudeToolChoice provided to buildGeminiToolConfigFromClaude.")
+        return undefined
     }
 
     switch (claudeToolChoice.type) {
         case 'auto':
-            return { functionCallingConfig: { mode: 'AUTO' } };
+            return { functionCallingConfig: { mode: 'AUTO' } }
         case 'none':
-            return { functionCallingConfig: { mode: 'NONE' } };
+            return { functionCallingConfig: { mode: 'NONE' } }
         case 'tool':
             if (claudeToolChoice.name && typeof claudeToolChoice.name === 'string') {
-                return { functionCallingConfig: { mode: 'ANY', allowedFunctionNames: [claudeToolChoice.name] } };
+                return { functionCallingConfig: { mode: 'ANY', allowedFunctionNames: [claudeToolChoice.name] } }
             }
-            console.warn("Invalid tool name in claudeToolChoice of type 'tool'.");
-            return undefined;
+            console.warn("Invalid tool name in claudeToolChoice of type 'tool'.")
+            return undefined
         default:
-            console.warn(`Unsupported claudeToolChoice type: ${claudeToolChoice.type}`);
-            return undefined;
+            console.warn(`Unsupported claudeToolChoice type: ${claudeToolChoice.type}`)
+            return undefined
     }
 }
 
@@ -1171,33 +1225,33 @@ function buildGeminiToolConfigFromClaude(claudeToolChoice) {
  * @param {string|Array} content - Claude message content.
  * @returns {Array} Array of Gemini parts.
  */
-function processClaudeContentToGeminiParts(content) {
-    if (!content) return [];
+function processClaudeContentToGeminiParts (content) {
+    if (!content) return []
 
     // Handle string content
     if (typeof content === 'string') {
-        return [{ text: content }];
+        return [{ text: content }]
     }
 
     // Handle array content (multimodal)
     if (Array.isArray(content)) {
-        const parts = [];
+        const parts = []
 
         content.forEach(block => {
             // Ensure block is a valid object and has a type
             if (!block || typeof block !== 'object' || !block.type) {
-                console.warn("Skipping invalid content block in processClaudeContentToGeminiParts.");
-                return;
+                console.warn("Skipping invalid content block in processClaudeContentToGeminiParts.")
+                return
             }
 
             switch (block.type) {
                 case 'text':
                     if (typeof block.text === 'string') {
-                        parts.push({ text: block.text });
+                        parts.push({ text: block.text })
                     } else {
-                        console.warn("Invalid text content in Claude text block.");
+                        console.warn("Invalid text content in Claude text block.")
                     }
-                    break;
+                    break
 
                 case 'image':
                     if (block.source && typeof block.source === 'object' && block.source.type === 'base64' &&
@@ -1207,11 +1261,11 @@ function processClaudeContentToGeminiParts(content) {
                                 mimeType: block.source.media_type,
                                 data: block.source.data
                             }
-                        });
+                        })
                     } else {
-                        console.warn("Invalid image source in Claude image block.");
+                        console.warn("Invalid image source in Claude image block.")
                     }
-                    break;
+                    break
 
                 case 'tool_use':
                     if (typeof block.name === 'string' && block.input && typeof block.input === 'object') {
@@ -1220,11 +1274,11 @@ function processClaudeContentToGeminiParts(content) {
                                 name: block.name,
                                 args: block.input
                             }
-                        });
+                        })
                     } else {
-                        console.warn("Invalid tool_use block in Claude content.");
+                        console.warn("Invalid tool_use block in Claude content.")
                     }
-                    break;
+                    break
 
                 case 'tool_result':
                     // Claude's tool_result block does not contain the function name, only tool_use_id.
@@ -1238,26 +1292,26 @@ function processClaudeContentToGeminiParts(content) {
                                 name: block.tool_use_id, // This might need to be the actual function name
                                 response: { content: block.content } // content can be any JSON-serializable value
                             }
-                        });
+                        })
                     } else {
-                        console.warn("Invalid tool_result block in Claude content: missing tool_use_id.");
+                        console.warn("Invalid tool_result block in Claude content: missing tool_use_id.")
                     }
-                    break;
+                    break
 
                 default:
                     // Handle any other content types as text if they have a text property
                     if (typeof block.text === 'string') {
-                        parts.push({ text: block.text });
+                        parts.push({ text: block.text })
                     } else {
-                        console.warn(`Unsupported Claude content block type: ${block.type}. Skipping.`);
+                        console.warn(`Unsupported Claude content block type: ${block.type}. Skipping.`)
                     }
             }
-        });
+        })
 
-        return parts;
+        return parts
     }
 
-    return [];
+    return []
 }
 
 /**
@@ -1266,7 +1320,7 @@ function processClaudeContentToGeminiParts(content) {
  * @param {string} model - The model name to include in the response.
  * @returns {Object} The formatted Claude API messages response.
  */
-export function toClaudeChatCompletionFromGemini(geminiResponse, model) {
+export function toClaudeChatCompletionFromGemini (geminiResponse, model) {
     // Handle cases where geminiResponse or candidates are missing or empty
     if (!geminiResponse || !geminiResponse.candidates || geminiResponse.candidates.length === 0) {
         return {
@@ -1281,33 +1335,33 @@ export function toClaudeChatCompletionFromGemini(geminiResponse, model) {
                 input_tokens: geminiResponse?.usageMetadata?.promptTokenCount || 0,
                 output_tokens: geminiResponse?.usageMetadata?.candidatesTokenCount || 0
             }
-        };
+        }
     }
 
-    const candidate = geminiResponse.candidates[0];
-    const content = processGeminiResponseToClaudeContent(geminiResponse);
-    const finishReason = candidate.finishReason;
-    let stopReason = "end_turn"; // Default stop reason
+    const candidate = geminiResponse.candidates[0]
+    const content = processGeminiResponseToClaudeContent(geminiResponse)
+    const finishReason = candidate.finishReason
+    let stopReason = "end_turn" // Default stop reason
 
     if (finishReason) {
         switch (finishReason) {
             case 'STOP':
-                stopReason = 'end_turn';
-                break;
+                stopReason = 'end_turn'
+                break
             case 'MAX_TOKENS':
-                stopReason = 'max_tokens';
-                break;
+                stopReason = 'max_tokens'
+                break
             case 'SAFETY':
-                stopReason = 'safety';
-                break;
+                stopReason = 'safety'
+                break
             case 'RECITATION':
-                stopReason = 'recitation';
-                break;
+                stopReason = 'recitation'
+                break
             case 'OTHER':
-                stopReason = 'other';
-                break;
+                stopReason = 'other'
+                break
             default:
-                stopReason = 'end_turn';
+                stopReason = 'end_turn'
         }
     }
 
@@ -1323,7 +1377,7 @@ export function toClaudeChatCompletionFromGemini(geminiResponse, model) {
             input_tokens: geminiResponse.usageMetadata?.promptTokenCount || 0,
             output_tokens: geminiResponse.usageMetadata?.candidatesTokenCount || 0
         }
-    };
+    }
 }
 
 /**
@@ -1331,10 +1385,10 @@ export function toClaudeChatCompletionFromGemini(geminiResponse, model) {
  * @param {Object} geminiResponse - The Gemini API response.
  * @returns {Array} Array of Claude content blocks.
  */
-function processGeminiResponseToClaudeContent(geminiResponse) {
-    if (!geminiResponse || !geminiResponse.candidates || geminiResponse.candidates.length === 0) return [];
+function processGeminiResponseToClaudeContent (geminiResponse) {
+    if (!geminiResponse || !geminiResponse.candidates || geminiResponse.candidates.length === 0) return []
 
-    const content = [];
+    const content = []
 
     geminiResponse.candidates.forEach(candidate => {
         if (candidate.content && candidate.content.parts) {
@@ -1343,7 +1397,7 @@ function processGeminiResponseToClaudeContent(geminiResponse) {
                     content.push({
                         type: 'text',
                         text: part.text
-                    });
+                    })
                 } else if (part.inlineData) {
                     content.push({
                         type: 'image',
@@ -1352,7 +1406,7 @@ function processGeminiResponseToClaudeContent(geminiResponse) {
                             media_type: part.inlineData.mimeType,
                             data: part.inlineData.data
                         }
-                    });
+                    })
                 } else if (part.functionCall) {
                     // Convert Gemini functionCall to Claude tool_use
                     content.push({
@@ -1360,13 +1414,13 @@ function processGeminiResponseToClaudeContent(geminiResponse) {
                         id: uuidv4(), // Generate a new ID for the tool use
                         name: part.functionCall.name,
                         input: part.functionCall.args || {}
-                    });
+                    })
                 }
-            });
+            })
         }
-    });
+    })
 
-    return content;
+    return content
 }
 
 /**
@@ -1375,21 +1429,21 @@ function processGeminiResponseToClaudeContent(geminiResponse) {
  * @param {string} [model] - Optional model name to include in the response.
  * @returns {Object} The formatted Claude API messages stream chunk.
  */
-export function toClaudeStreamChunkFromGemini(geminiChunk, model) {
+export function toClaudeStreamChunkFromGemini (geminiChunk, model) {
     if (!geminiChunk) {
-        return null;
+        return null
     }
 
     // Handle different types of Gemini stream events
     if (geminiChunk.candidates && geminiChunk.candidates.length > 0) {
-        const candidate = geminiChunk.candidates[0];
+        const candidate = geminiChunk.candidates[0]
 
         if (candidate.content && candidate.content.parts) {
             const textParts = candidate.content.parts
                 .filter(part => part.text)
-                .map(part => part.text);
+                .map(part => part.text)
 
-            const functionCallPart = candidate.content.parts.find(part => part.functionCall);
+            const functionCallPart = candidate.content.parts.find(part => part.functionCall)
 
             if (functionCallPart) {
                 // Handle tool_use
@@ -1402,7 +1456,7 @@ export function toClaudeStreamChunkFromGemini(geminiChunk, model) {
                         name: functionCallPart.functionCall.name,
                         input: functionCallPart.functionCall.args || {}
                     }
-                };
+                }
             } else if (textParts.length > 0) {
                 return {
                     type: "content_block_delta",
@@ -1411,31 +1465,31 @@ export function toClaudeStreamChunkFromGemini(geminiChunk, model) {
                         type: "text_delta",
                         text: textParts.join('')
                     }
-                };
+                }
             }
         }
 
         // Handle finish reason
         if (candidate.finishReason) {
-            let stopReason = "end_turn";
+            let stopReason = "end_turn"
             switch (candidate.finishReason) {
                 case 'STOP':
-                    stopReason = 'end_turn';
-                    break;
+                    stopReason = 'end_turn'
+                    break
                 case 'MAX_TOKENS':
-                    stopReason = 'max_tokens';
-                    break;
+                    stopReason = 'max_tokens'
+                    break
                 case 'SAFETY':
-                    stopReason = 'safety';
-                    break;
+                    stopReason = 'safety'
+                    break
                 case 'RECITATION':
-                    stopReason = 'recitation';
-                    break;
+                    stopReason = 'recitation'
+                    break
                 case 'OTHER':
-                    stopReason = 'other';
-                    break;
+                    stopReason = 'other'
+                    break
                 default:
-                    stopReason = 'end_turn';
+                    stopReason = 'end_turn'
             }
             return {
                 type: "message_delta",
@@ -1446,7 +1500,7 @@ export function toClaudeStreamChunkFromGemini(geminiChunk, model) {
                 usage: geminiChunk.usageMetadata ? {
                     output_tokens: geminiChunk.usageMetadata.candidatesTokenCount || 0
                 } : undefined
-            };
+            }
         }
     }
 
@@ -1459,7 +1513,7 @@ export function toClaudeStreamChunkFromGemini(geminiChunk, model) {
                 input_tokens: geminiChunk.usageMetadata.promptTokenCount || 0,
                 output_tokens: geminiChunk.usageMetadata.candidatesTokenCount || 0
             }
-        };
+        }
     }
 
     // Default text delta for simple text chunks (should ideally be handled by candidate.content.parts)
@@ -1473,8 +1527,8 @@ export function toClaudeStreamChunkFromGemini(geminiChunk, model) {
                 type: "text_delta",
                 text: geminiChunk
             }
-        };
+        }
     }
 
-    return null;
+    return null
 }

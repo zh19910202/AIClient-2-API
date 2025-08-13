@@ -232,6 +232,53 @@ node src/api-server.js \
 
 > 提示：若启动时已设置 `--model-provider openai-openrouter`，客户端可省略 `model-provider` 请求头。
 
+### 与 Claude Code 配合
+
+- 方式一（推荐，OpenAI 协议端到端）：
+  - 在 Claude Code/IDE 里配置为 OpenAI 客户端：
+    - Base URL: `http://localhost:3000/v1`
+    - Authorization: `Bearer 123456`
+    - model: 例如 `anthropic/claude-3.5-sonnet` 或其他 OpenRouter 模型
+
+- 方式二（Claude 原生协议）：
+  - 仍然走 `/v1/messages`，但上游通过本代理转发到 OpenRouter（已实现 OpenAI⇄Claude 转换）：
+  ```bash
+  export ANTHROPIC_BASE_URL=http://localhost:3000
+  export ANTHROPIC_AUTH_TOKEN=123456
+  # 然后在 Claude Code 中直接使用 Claude 原生接口配置
+  ```
+  - 保持客户端请求 `/v1/messages`，本代理会自动完成 Claude→OpenAI 请求转换与 OpenAI→Claude 的响应/流式转换。
+
+### 启动速查（OpenRouter）
+
+```bash
+node src/api-server.js \
+  --host 0.0.0.0 --port 3000 \
+  --api-key 123456 \
+  --model-provider openai-openrouter \
+  --openrouter-api-key sk-or-v1-你的OpenRouterKey \
+  --openrouter-base-url https://openrouter.ai/api/v1 \
+  --default-model anthropic/claude-3.5-sonnet \
+  --default-model-mode force
+```
+
+动态切换提供商（二选一）：
+- 请求头：`model-provider: openai-openrouter`
+- 路径前缀：`http://localhost:3000/openai-openrouter/v1/chat/completions`
+
+流式调用示例：
+```bash
+curl -N http://localhost:3000/v1/chat/completions \
+  -H "Authorization: Bearer 123456" \
+  -H "Content-Type: application/json" \
+  -H "model-provider: openai-openrouter" \
+  -d '{
+    "model": "anthropic/claude-3.5-sonnet",
+    "messages": [{"role":"user","content":"流式测试：写一首五行小诗"}],
+    "stream": true
+  }'
+```
+
 ---
 
 ## 📄 开源许可
